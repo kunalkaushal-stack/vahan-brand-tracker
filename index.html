@@ -145,6 +145,15 @@ header {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
   border-color: var(--accent); color: var(--accent);
 }
+.filter-select {
+  font-size: 12px; padding: 4px 8px;
+  border-radius: 4px; border: 1px solid var(--border);
+  background: var(--card); color: var(--text);
+  cursor: pointer; transition: all .1s; font-family: inherit;
+}
+.filter-select:hover, .filter-select:focus {
+  border-color: var(--accent); outline: none;
+}
 
 /* ── Brand tabs ── */
 .brand-tabs {
@@ -217,8 +226,16 @@ header {
 .panel-head {
   padding: 14px 18px 10px;
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: baseline; gap: 10px;
+  display: flex; align-items: center; gap: 10px;
 }
+.panel-dl-btn {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; padding: 4px 9px;
+  border-radius: 4px; border: 1px solid var(--border);
+  background: transparent; color: var(--sub);
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.panel-dl-btn:hover { background: var(--muted); color: var(--text); border-color: var(--accent) }
 .panel-title { font-size: 13px; font-weight: 600; color: var(--text) }
 .panel-sub { font-size: 11px; color: var(--sub) }
 .panel-head-spacer { flex: 1 }
@@ -346,6 +363,32 @@ table.cmp tr:hover td { background: var(--muted) }
     <button class="filter-chip" data-period="fy2526" onclick="setPeriod(this)">FY 2025-26</button>
     <button class="filter-chip" data-period="cy2026" onclick="setPeriod(this)">CY 2026 YTD</button>
   </div>
+  <div class="filter-group">
+    <span class="filter-label">Year</span>
+    <select class="filter-select" id="year-select" onchange="setYearMonth()">
+      <option value="all">All Years</option>
+      <option value="2025">2025</option>
+      <option value="2026">2026</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Month</span>
+    <select class="filter-select" id="month-select" onchange="setYearMonth()">
+      <option value="all">All Months</option>
+      <option value="JAN">January</option>
+      <option value="FEB">February</option>
+      <option value="MAR">March</option>
+      <option value="APR">April</option>
+      <option value="MAY">May</option>
+      <option value="JUN">June</option>
+      <option value="JUL">July</option>
+      <option value="AUG">August</option>
+      <option value="SEP">September</option>
+      <option value="OCT">October</option>
+      <option value="NOV">November</option>
+      <option value="DEC">December</option>
+    </select>
+  </div>
   <div class="filter-group" style="margin-left:auto">
     <span class="filter-label">Category</span>
     <button class="filter-chip active" data-cat="all" onclick="setCategory(this,'all')">All</button>
@@ -374,6 +417,7 @@ table.cmp tr:hover td { background: var(--muted) }
           <option value="absolute">Absolute</option>
           <option value="growth">MoM Growth %</option>
         </select>
+        <button class="panel-dl-btn" onclick="downloadChart('trendChart','Monthly_Registrations')">↓ PNG</button>
       </div>
       <div class="panel-body">
         <div class="chart-wrap" style="height:280px">
@@ -387,6 +431,8 @@ table.cmp tr:hover td { background: var(--muted) }
       <div class="panel-head">
         <span class="panel-title">Market Share</span>
         <span class="panel-sub" id="share-period-label"></span>
+        <div class="panel-head-spacer"></div>
+        <button class="panel-dl-btn" onclick="downloadChart('shareChart','Market_Share')">↓ PNG</button>
       </div>
       <div class="panel-body" style="display:flex;justify-content:center">
         <div class="chart-wrap" style="height:220px;max-width:220px">
@@ -402,9 +448,10 @@ table.cmp tr:hover td { background: var(--muted) }
     <div class="panel">
       <div class="panel-head">
         <span class="panel-title">State-wise Registrations</span>
-        <span class="panel-sub">Top states, Aug '25 – Aug '26 combined</span>
+        <span class="panel-sub" id="state-period-label">Top states, combined</span>
         <div class="panel-head-spacer"></div>
         <select id="state-brand" class="filter-chip" onchange="renderStateChart()" style="padding:3px 8px"></select>
+        <button class="panel-dl-btn" onclick="downloadChart('stateChart','State_Registrations')">↓ PNG</button>
       </div>
       <div class="panel-body">
         <div class="chart-wrap" style="height:260px">
@@ -418,7 +465,10 @@ table.cmp tr:hover td { background: var(--muted) }
   <div class="panel" style="margin-bottom:24px">
     <div class="panel-head">
       <span class="panel-title">Brand Comparison</span>
-      <span class="panel-sub">Aug 2025 – Aug 2026 • All India</span>
+      <span class="panel-sub" id="table-period-label">Aug 2025 – Aug 2026 • All India</span>
+      <div class="panel-head-spacer"></div>
+      <button class="panel-dl-btn" onclick="downloadTableCSV()">↓ CSV</button>
+      <button class="panel-dl-btn" onclick="downloadExcel()">↓ Excel</button>
     </div>
     <div class="table-scroll">
       <table class="cmp" id="cmpTable"></table>
@@ -553,6 +603,8 @@ let DATA = null;
 let activeBrand = null;
 let activePeriod = "aug25-aug26";
 let activeCategory = "all";
+let activeYear = "all";
+let activeMonth = "all";
 let charts = {};
 
 const MONTHS_ALL = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
@@ -573,7 +625,20 @@ const PERIOD_DEFS = {
   ],
 };
 
-function getPeriodSlices() { return PERIOD_DEFS[activePeriod] || PERIOD_DEFS["aug25-aug26"]; }
+function getPeriodSlices() {
+  const base = PERIOD_DEFS[activePeriod] || PERIOD_DEFS["aug25-aug26"];
+  // Apply year/month filters on top of the base period
+  if (activeYear === "all" && activeMonth === "all") return base;
+  const result = [];
+  for (const slice of base) {
+    if (activeYear !== "all" && slice.year !== activeYear) continue;
+    const months = activeMonth === "all"
+      ? slice.months
+      : slice.months.filter(m => m === activeMonth);
+    if (months.length) result.push({year: slice.year, months});
+  }
+  return result.length ? result : base; // fall back to base if filter yields nothing
+}
 
 function getPeriodMonths() {
   const slices = getPeriodSlices();
@@ -652,16 +717,27 @@ function buildStateBrandSelect() {
   sel.value = activeBrand;
 }
 
+function getActivePeriodLabel() {
+  const baseMap = {"aug25-aug26":"Aug '25 – Aug '26","fy2526":"FY 2025-26","cy2026":"CY 2026 YTD"};
+  let label = baseMap[activePeriod] || "";
+  const MONTH_NAMES = {JAN:"Jan",FEB:"Feb",MAR:"Mar",APR:"Apr",MAY:"May",JUN:"Jun",
+                       JUL:"Jul",AUG:"Aug",SEP:"Sep",OCT:"Oct",NOV:"Nov",DEC:"Dec"};
+  if (activeYear !== "all") label = activeYear;
+  if (activeMonth !== "all") label = (MONTH_NAMES[activeMonth] || activeMonth) + (activeYear !== "all" ? " " + activeYear : "");
+  return label;
+}
+
 function renderAll() {
   renderKPIs();
   renderTrend();
   renderShare();
   renderStateChart();
   renderTable();
-  // Update period label
-  const map = {"aug25-aug26":"Aug '25 – Aug '26","fy2526":"FY 2025-26","cy2026":"CY 2026 YTD"};
-  document.getElementById("trend-period-label").textContent = map[activePeriod] || "";
-  document.getElementById("share-period-label").textContent = map[activePeriod] || "";
+  const label = getActivePeriodLabel();
+  document.getElementById("trend-period-label").textContent = label;
+  document.getElementById("share-period-label").textContent = label;
+  document.getElementById("state-period-label").textContent = "Top states • " + label;
+  document.getElementById("table-period-label").textContent = label + " • All India";
 }
 
 // ── KPIs ──────────────────────────────────────────────────────
@@ -938,6 +1014,61 @@ function setCategory(btn, cat) {
   activeCategory = cat;
   renderAll();
 }
+function setYearMonth() {
+  activeYear  = document.getElementById("year-select").value;
+  activeMonth = document.getElementById("month-select").value;
+  buildBrandTabs();
+  renderAll();
+}
+
+function downloadChart(canvasId, name) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  // Draw onto a white/dark-bg copy so PNG isn't transparent
+  const off = document.createElement("canvas");
+  off.width = canvas.width; off.height = canvas.height;
+  const ctx2 = off.getContext("2d");
+  ctx2.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--card").trim() || "#131c30";
+  ctx2.fillRect(0, 0, off.width, off.height);
+  ctx2.drawImage(canvas, 0, 0);
+  const link = document.createElement("a");
+  const period = getActivePeriodLabel().replace(/[^a-zA-Z0-9]/g, "_");
+  link.download = `VAHAN_${name}_${period}_${new Date().toISOString().slice(0,10)}.png`;
+  link.href = off.toDataURL("image/png");
+  link.click();
+  toast("↓ Chart saved as PNG");
+}
+
+function downloadTableCSV() {
+  if (!DATA) { toast("No data loaded"); return; }
+  const {labels, keys} = getPeriodMonths();
+  const brandKeys = Object.keys(DATA.brands);
+  const rows = [["Brand", "Total", "Avg/Month", "Latest Month", "MoM %", "H1→H2 Growth %", ...labels]];
+  for (const k of brandKeys) {
+    const b = DATA.brands[k];
+    const monthly = getBrandMonthly(k);
+    const total = monthly.reduce((a, v) => a + v, 0);
+    if (!total) continue;
+    const avg = Math.round(total / monthly.length);
+    const last = monthly[monthly.length - 1] || 0;
+    const prev = monthly[monthly.length - 2] || 0;
+    const mom = prev ? +((last - prev) / prev * 100).toFixed(1) : 0;
+    const fh = monthly.slice(0, Math.ceil(monthly.length / 2)).reduce((a, v) => a + v, 0);
+    const sh = monthly.slice(Math.ceil(monthly.length / 2)).reduce((a, v) => a + v, 0);
+    const gr = fh ? +((sh - fh) / fh * 100).toFixed(1) : 0;
+    rows.push([b.label, total, avg, last, mom, gr, ...monthly]);
+  }
+  const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {type: "text/csv"});
+  const link = document.createElement("a");
+  const period = getActivePeriodLabel().replace(/[^a-zA-Z0-9]/g, "_");
+  link.download = `VAHAN_Table_${period}_${new Date().toISOString().slice(0,10)}.csv`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+  toast("↓ Table saved as CSV");
+}
+
 function toggleDataset(chart, label) {
   if (!chart) return;
   const meta = chart.getDatasetMeta(chart.data.datasets.findIndex(d=>d.label===label));
