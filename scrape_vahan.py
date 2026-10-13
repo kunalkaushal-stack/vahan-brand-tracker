@@ -90,18 +90,23 @@ VEH_CATEGORIES = {
     "3W": ["3WIC", "3WN", "3WT"],
 }
 
-# States to fetch breakdown for (add/remove as needed; '' = all India)
-FETCH_STATES = [
-    ("-1", "All India"),
-    # Uncomment below for state-level breakdown (adds ~70 more requests)
-    # ("MH", "Maharashtra"), ("RJ", "Rajasthan"), ("UP", "Uttar Pradesh"),
-    # ("KA", "Karnataka"), ("TN", "Tamil Nadu"), ("GJ", "Gujarat"),
-    # ("HR", "Haryana"), ("AP", "Andhra Pradesh"), ("TG", "Telangana"),
-    # ("MP", "Madhya Pradesh"), ("WB", "West Bengal"), ("BR", "Bihar"),
-    # ("DL", "Delhi"), ("KL", "Kerala"), ("PB", "Punjab"),
-    # ("OR", "Odisha"), ("JH", "Jharkhand"), ("CG", "Chhattisgarh"),
-    # ("UK", "Uttarakhand"), ("HP", "Himachal Pradesh"), ("JK", "Jammu and Kashmir"),
-    # ("AS", "Assam"), ("GA", "Goa"), ("CH", "Chandigarh"),
+# Top states by vehicle registration volume (used for state-wise breakdown fetch)
+TOP_STATES = [
+    ("MH", "Maharashtra"),
+    ("UP", "Uttar Pradesh"),
+    ("RJ", "Rajasthan"),
+    ("KA", "Karnataka"),
+    ("TN", "Tamil Nadu"),
+    ("GJ", "Gujarat"),
+    ("HR", "Haryana"),
+    ("MP", "Madhya Pradesh"),
+    ("AP", "Andhra Pradesh"),
+    ("TG", "Telangana"),
+    ("DL", "Delhi"),
+    ("KL", "Kerala"),
+    ("PB", "Punjab"),
+    ("WB", "West Bengal"),
+    ("BR", "Bihar"),
 ]
 
 YEARS_TO_FETCH = [2025, 2026]
@@ -171,6 +176,27 @@ class VAHANScraper:
             "groupingTable_first": str(first_row),
             "groupingTable_rows": "25",
             "groupingTable_encodeFeature": "true",
+            "javax.faces.ViewState": self.view_state,
+        }
+
+    def _state_params(self, year, veh_cat):
+        """Parameters for state-wise x-axis (gives each maker's per-state totals)."""
+        return {
+            "javax.faces.partial.ajax": "true",
+            "javax.faces.source": "j_idt70",
+            "javax.faces.partial.execute": "@all",
+            "javax.faces.partial.render":
+                "VhCatg norms fuel VhClass combTablePnl groupingTable msg vhCatgPnl",
+            "j_idt70": "j_idt70",
+            "masterLayout_formlogin": "masterLayout_formlogin",
+            "j_idt31_focus": "", "j_idt31_input": "A",
+            "j_idt39_focus": "", "j_idt39_input": "-1",
+            "selectedRto_focus": "", "selectedRto_input": "-1",
+            "yaxisVar_focus": "", "yaxisVar_input": "Maker",
+            "xaxisVar_focus": "", "xaxisVar_input": "State Wise",
+            "selectedYearType_focus": "", "selectedYearType_input": "C",
+            "selectedYear_focus": "", "selectedYear_input": str(year),
+            "VhCatg": VEH_CATEGORIES[veh_cat],
             "javax.faces.ViewState": self.view_state,
         }
 
@@ -313,6 +339,98 @@ class VAHANScraper:
         print(f"{page_idx} pages → {len(all_makers)} makers total")
         return all_makers
 
+    def _parse_state_table(self, html):
+        """Return {maker: {state_name: total}} from state-wise table HTML.
+
+        The table has makers as rows and states as columns.
+        The header row contains state names; the last column is Total (skipped).
+        """
+        tag_pat  = re.compile(r'<[^>]+>')
+        th_pat   = re.compile(r'<th[^>]*>(.*?)</th>',   re.DOTALL | re.IGNORECASE)
+        row_pat  = re.compile(
+            r'<tr[^>]+class="[^"]*ui-widget-content[^"]*"[^>]*>(.*?)</tr>',
+            re.DOTALL | re.IGNORECASE)
+        cell_pat = re.compile(r'<td[^>]*>(.*?)</td>',   re.DOTALL | re.IGNORECASE)
+
+        # ── Extract state names from header ──────────────────────────────────
+        state_names = []
+        # Look for a header row (thead or row with th elements)
+        thead_m = re.search(r'<thead[^>]*>(.*?)</thead>', html, re.DOTALL | re.IGNORECASE)
+        if thead_m:
+            raw_ths = [tag_pat.sub("", th).replace(",", "").replace("\xa0", "").strip()
+                       for th in th_pat.findall(thead_m.group(1))]
+            raw_ths = [h for h in raw_ths if h]
+            # Layout: S No | Maker | State1 | State2 | ... | Total
+            if len(raw_ths) >= 3:
+                state_names = raw_ths[2:-1]
+
+        if not state_names:
+            return {}
+
+        # ── Parse data rows ───────────────────────────────────────────────────
+        makers = {}
+        for row_m in row_pat.finditer(html):
+            raw_cells = cell_pat.findall(row_m.group(1))
+            cells = [tag_pat.sub("", c).replace(",", "").replace("\xa0", "").strip()
+                     for c in raw_cells]
+            cells = [c for c in cells if c]
+            if len(cells) < 3:
+                continue
+            maker = cells[1].strip().upper()
+            if maker in ("MAKER", "S NO", "TOTAL", ""):
+                continue
+            state_vals = cells[2:-1]
+            state_data = {}
+            for i, state in enumerate(state_names[:len(state_vals)]):
+                try:
+                    v = state_vals[i]
+                    state_data[state] = int(v) if v.lstrip("-").isdigit() else 0
+                except (ValueError, IndexError):
+                    state_data[state] = 0
+            makers[maker] = state_data
+        return makers
+
+    def fetch_year_states(self, year, veh_cat):
+        """Fetch state-wise breakdown for all makers in one year (State Wise x-axis)."""
+        print(f"  Fetching {veh_cat} / {year} / state-wise …", end=" ", flush=True)
+        xml  = self._post(self._state_params(year, veh_cat))
+        html, new_vs = self._extract_from_xml(xml)
+        if new_vs:
+            self.view_state = new_vs
+
+        all_makers = self._parse_state_table(html)
+        has_more = self._has_next_page(html)
+        page_idx = 1
+
+        while has_more:
+            time.sleep(0.8)
+            first_row = page_idx * 25
+            xml  = self._post(self._paginator_params(first_row))
+            html, new_vs = self._extract_from_xml(xml)
+            if new_vs:
+                self.view_state = new_vs
+            new_rows = self._parse_state_table(html)
+            if not new_rows:
+                break
+            all_makers.update(new_rows)
+            page_idx += 1
+            if page_idx % 20 == 0:
+                print(f"…{page_idx}", end="", flush=True)
+            has_more = len(new_rows) >= 25
+
+        print(f"{page_idx} pages → {len(all_makers)} makers total")
+        return all_makers
+
+    def scan_maker_list(self, raw_makers, keywords):
+        """Print any maker whose name matches one of the keywords (case-insensitive)."""
+        for raw_name in raw_makers:
+            up = raw_name.upper()
+            for kw in keywords:
+                if kw.upper() in up:
+                    total = sum(raw_makers[raw_name].values()) if isinstance(raw_makers[raw_name], dict) else raw_makers[raw_name]
+                    print(f"  FOUND [{kw}] → {raw_name!r:60s}  total={total:,}")
+                    break
+
     def normalise_maker(self, raw_name):
         """Map raw VAHAN name to canonical brand name (or None if not a target)."""
         up = raw_name.upper().strip()
@@ -342,11 +460,58 @@ def main():
         "states_fetched": [],
     }
 
+    # ── Phase 1: Monthly all-India totals ─────────────────────────────────────
+    print("\n→ Phase 1: Monthly totals (All India)…")
+    SCAN_KEYWORDS = ["CHETAK", "HUSQVARNA", "SVARTPILEN", "VITPILEN", "PIERER",
+                     "TRIUMPH", "KTM", "BAJAJ", "NORTON", "YEZDI"]
+    found_unknown = set()
+
     for veh_cat in VEH_CATEGORIES:
-        for state_code, state_name in FETCH_STATES:
+        for year in YEARS_TO_FETCH:
+            time.sleep(1.0)
+            try:
+                scraper.init_session()
+            except Exception as e:
+                print(f"  Session init failed: {e}")
+
+            for attempt in range(3):
+                try:
+                    raw = scraper.fetch_year(year, "-1", veh_cat)
+                    break
+                except Exception as e:
+                    print(f"  ERROR (attempt {attempt+1}/3): {e}")
+                    if attempt < 2:
+                        print(f"  Retrying in 5s…")
+                        time.sleep(5)
+                        try:
+                            scraper.init_session()
+                        except Exception:
+                            pass
+                    else:
+                        raw = {}
+                        break
+
+            # Keyword scan on this fetch
+            scraper.scan_maker_list(raw, SCAN_KEYWORDS)
+
+            for raw_name, month_data in raw.items():
+                canonical = scraper.normalise_maker(raw_name)
+                if not canonical or canonical not in result["brands"]:
+                    continue
+                existing = result["brands"][canonical]["monthly"][str(year)]
+                for mon, val in month_data.items():
+                    existing[mon] = existing.get(mon, 0) + val
+
+    # ── Phase 2: Per-state breakdown (top 15 states) ──────────────────────────
+    # Each state request uses yaxisVar=Maker + specific state filter,
+    # giving per-maker monthly data for that state. We sum months for state total.
+    print(f"\n→ Phase 2: State breakdown ({len(TOP_STATES)} states × "
+          f"{len(VEH_CATEGORIES)} categories × {len(YEARS_TO_FETCH)} years)…")
+
+    for veh_cat in VEH_CATEGORIES:
+        for state_code, state_name in TOP_STATES:
             for year in YEARS_TO_FETCH:
-                time.sleep(1.0)
-                # Always re-init before each fetch — session expires after many pages
+                time.sleep(1.5)
                 try:
                     scraper.init_session()
                 except Exception as e:
@@ -373,22 +538,11 @@ def main():
                     canonical = scraper.normalise_maker(raw_name)
                     if not canonical or canonical not in result["brands"]:
                         continue
+                    total = sum(month_data.values())
+                    brand_states = result["brands"][canonical]["states"]
+                    brand_states[state_name] = brand_states.get(state_name, 0) + total
 
-                    brand = result["brands"][canonical]
-
-                    if state_code == "-1":
-                        # All India monthly totals
-                        existing = brand["monthly"][str(year)]
-                        for mon, val in month_data.items():
-                            existing[mon] = existing.get(mon, 0) + val
-                    else:
-                        # State totals (sum across months)
-                        total = sum(month_data.values())
-                        brand["states"][state_name] = \
-                            brand["states"].get(state_name, 0) + total
-
-    if FETCH_STATES:
-        result["states_fetched"] = [s for _, s in FETCH_STATES if s != "All India"]
+    result["states_fetched"] = [s for _, s in TOP_STATES]
 
     out = "vahan_data.json"
     with open(out, "w", encoding="utf-8") as f:

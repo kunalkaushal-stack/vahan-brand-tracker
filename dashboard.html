@@ -454,8 +454,13 @@ table.cmp tr:hover td { background: var(--muted) }
         <button class="panel-dl-btn" onclick="downloadChart('stateChart','State_Registrations')">↓ PNG</button>
       </div>
       <div class="panel-body">
-        <div class="chart-wrap" style="height:260px">
+        <div class="chart-wrap" style="height:260px;position:relative">
           <canvas id="stateChart"></canvas>
+          <div id="state-nodata" hidden style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--sub)">
+            <span style="font-size:28px;opacity:.3">📍</span>
+            <span style="font-size:13px;font-weight:600">State data not yet fetched</span>
+            <span style="font-size:11px;opacity:.7">Re-run scrape_vahan.py — state-wise fetch is now included</span>
+          </div>
         </div>
       </div>
     </div>
@@ -740,6 +745,13 @@ function renderAll() {
   document.getElementById("table-period-label").textContent = label + " • All India";
 }
 
+// Brands VAHAN registers under Bajaj Auto (type approval is with manufacturer)
+const BAJAJ_NOTE_BRANDS = {
+  "HUSQVARNA":          "Registered under Bajaj Auto in VAHAN (type approval with manufacturer)",
+  "CHETAK TECHNOLOGY LTD": "Not found separately in VAHAN — may be under Bajaj Auto (same plant)",
+  "KTM MOTORRAD AG":    "Domestic KTM registered under Bajaj Auto; only CBU imports (~100 units/yr) show here",
+};
+
 // ── KPIs ──────────────────────────────────────────────────────
 function renderKPIs() {
   const b = DATA.brands[activeBrand];
@@ -752,26 +764,31 @@ function renderKPIs() {
   const prev = monthly[monthly.length - 2] || 0;
   const mom = pct(last, prev);
 
-  // YoY: compare last 8 months of period with 8 months before
-  const {keys} = getPeriodMonths();
-  const halfLen = Math.min(8, Math.floor(keys.length/2));
-  const recentHalf = monthly.slice(-halfLen).reduce((a,b)=>a+b,0);
-  const prevHalf   = monthly.slice(-halfLen*2,-halfLen).reduce((a,b)=>a+b,0);
-  const yoy = pct(recentHalf, prevHalf);
-
-  // Market context
   const allTotals = Object.keys(DATA.brands).map(k => getBrandTotal(k));
   const grandTotal = allTotals.reduce((a,b)=>a+b,0);
   const share = grandTotal ? (total/grandTotal*100).toFixed(1) : "—";
+
+  const grid = document.getElementById("kpi-grid");
+
+  // Show data-quality note for brands with no VAHAN data
+  const note = BAJAJ_NOTE_BRANDS[activeBrand];
+  if (total === 0 && note) {
+    grid.innerHTML = `
+      <div class="kpi-card" style="border-top:3px solid ${b.color};grid-column:1/-1">
+        <div class="kpi-eyebrow">Data Note — ${b.label}</div>
+        <div style="font-size:13px;color:var(--warn);margin-top:6px">⚠ 0 registrations found in VAHAN under this brand name</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:8px;line-height:1.6">${note}</div>
+      </div>`;
+    return;
+  }
 
   const kpis = [
     {label:"Total Registrations", value:fmtFull(total), sub:`${b.label} • Period total`},
     {label:"Monthly Average",     value:fmtFull(avg),    sub:"Avg per month"},
     {label:"Latest Month",        value:fmtFull(last),   delta:mom, sub:"vs previous month"},
-    {label:"Share (tracked)",     value:share+"%",       sub:"vs 9 brands tracked"},
+    {label:"Share (tracked)",     value:share+"%",       sub:"vs brands tracked"},
   ];
 
-  const grid = document.getElementById("kpi-grid");
   grid.innerHTML = kpis.map(k => `
     <div class="kpi-card" style="border-top:3px solid ${b.color}">
       <div class="kpi-eyebrow">${k.label}</div>
@@ -899,15 +916,26 @@ function renderStateChart() {
 
   const stateData = b.states || {};
   const entries = Object.entries(stateData)
+    .filter(([,v]) => v > 0)
     .sort(([,a],[,c]) => c - a)
     .slice(0, 15);
 
-  const stateLabels = entries.map(([s]) => s.length > 18 ? s.slice(0,16)+"…" : s);
-  const stateVals   = entries.map(([,v]) => v);
-  const max = Math.max(...stateVals);
-
   const ctx = document.getElementById("stateChart");
-  if (charts.state) charts.state.destroy();
+  const noDataEl = document.getElementById("state-nodata");
+
+  if (charts.state) { charts.state.destroy(); charts.state = null; }
+
+  if (!entries.length) {
+    ctx.style.display = "none";
+    if (noDataEl) noDataEl.hidden = false;
+    return;
+  }
+  ctx.style.display = "";
+  if (noDataEl) noDataEl.hidden = true;
+
+  const stateLabels = entries.map(([s]) => s.length > 20 ? s.slice(0,18)+"…" : s);
+  const stateVals   = entries.map(([,v]) => v);
+
   charts.state = new Chart(ctx, {
     type: "bar",
     data: {
