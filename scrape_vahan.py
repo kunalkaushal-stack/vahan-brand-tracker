@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import sys, io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 """
 VAHAN Dashboard Scraper
 Fetches maker-wise monthly vehicle registration data from VAHAN.
@@ -27,10 +31,12 @@ BRAND_ALIASES = {
     # Bajaj group
     "BAJAJ AUTO LTD":                                "BAJAJ AUTO LTD",
     "BAJAJ AUTO LIMITED":                            "BAJAJ AUTO LTD",
-    # KTM (manufactured by Bajaj in India, but may appear separately)
+    # KTM (registered as KTM MOTORRAD AG in VAHAN)
     "KTM MOTORRAD AG":                               "KTM MOTORRAD AG",
     "KTM INDIA PVT LTD":                             "KTM MOTORRAD AG",
-    # Triumph (Bajaj JV)
+    "KTM INDIA PRIVATE LIMITED":                     "KTM MOTORRAD AG",
+    # Triumph (Bajaj JV — confirmed VAHAN name)
+    "TRIUMPH MOTORCYCLES (INDIA) PVT LTD":           "TRIUMPH MOTORCYCLES INDIA",
     "TRIUMPH MOTORCYCLES (INDIA) PRIVATE LIMITED":   "TRIUMPH MOTORCYCLES INDIA",
     "TRIUMPH MOTORCYCLES INDIA PVT LTD":             "TRIUMPH MOTORCYCLES INDIA",
     "TRIUMPH MOTORCYCLES INDIA PRIVATE LIMITED":     "TRIUMPH MOTORCYCLES INDIA",
@@ -38,17 +44,29 @@ BRAND_ALIASES = {
     # Husqvarna (Bajaj group, built at Chakan)
     "HUSQVARNA MOTORCYCLES INDIA":                   "HUSQVARNA",
     "HUSQVARNA MOTORCYCLES PVT LTD":                 "HUSQVARNA",
+    "HUSQVARNA MOTORCYCLES INDIA PVT LTD":           "HUSQVARNA",
     "HUSQVARNA":                                     "HUSQVARNA",
-    # Chetak (Bajaj EV brand)
+    # Chetak (Bajaj EV brand, separate subsidiary)
     "CHETAK TECHNOLOGY LIMITED":                     "CHETAK TECHNOLOGY LTD",
     "CHETAK TECHNOLOGY LTD":                         "CHETAK TECHNOLOGY LTD",
-    # Other brands
+    "CHETAK ELECTRIC":                               "CHETAK TECHNOLOGY LTD",
+    # Bgauss
     "BGAUSS AUTO PRIVATE LIMITED":                   "BGAUSS AUTO PVT LTD",
+    "BGAUSS AUTO PVT LTD":                           "BGAUSS AUTO PVT LTD",
     "BGAUSS AUTO PVT. LTD":                          "BGAUSS AUTO PVT LTD",
+    # Ampere / Greaves Electric (Ampere is the brand; VAHAN uses Greaves entity)
+    "GREAVES ELECTRIC MOBILITY LTD":                 "AMPERE VEHICLES PVT LTD",
+    "GREAVES ELECTRIC MOBILITY LIMITED":             "AMPERE VEHICLES PVT LTD",
+    "GREAVES ELECTRIC MOBILITY PRIVATE LIMITED":     "AMPERE VEHICLES PVT LTD",
     "AMPERE VEHICLES PRIVATE LIMITED":               "AMPERE VEHICLES PVT LTD",
+    "AMPERE VEHICLES PVT LTD":                       "AMPERE VEHICLES PVT LTD",
     "AMPERE VEHICLES PVT. LTD.":                     "AMPERE VEHICLES PVT LTD",
+    # Ather
     "ATHER ENERGY LTD":                              "ATHER ENERGY LTD",
     "ATHER ENERGY PRIVATE LIMITED":                  "ATHER ENERGY LTD",
+    "ATHER ENERGY LIMITED":                          "ATHER ENERGY LTD",
+    # Piaggio (confirmed VAHAN name)
+    "PIAGGIO VEHICLES PVT LTD":                      "PIAGGIO VEHICLES PVT LTD",
     "PIAGGIO VEHICLES PRIVATE LIMITED":              "PIAGGIO VEHICLES PVT LTD",
     "PIAGGIO VEHICLES PVT. LTD.":                    "PIAGGIO VEHICLES PVT LTD",
 }
@@ -247,19 +265,22 @@ class VAHANScraper:
 
         return makers
 
-    def _get_total_pages(self, html):
-        # Try "Showing X to Y of Z entries"
-        m = re.search(r'of\s+(\d+)', html)
+    def _has_next_page(self, html):
+        """Return True if the paginator Next button is not disabled."""
+        # Match class="... ui-paginator-next ..." on the <a> element
+        m = re.search(r'<a[^>]*class="([^"]*ui-paginator-next[^"]*)"', html)
         if m:
-            return max(1, (int(m.group(1)) + 24) // 25)
-        # Count page link numbers in paginator
-        pages = re.findall(r'ui-paginator-page[^"]*"[^>]*>(\d+)<', html)
-        return max((int(p) for p in pages), default=1)
+            return "ui-state-disabled" not in m.group(1)
+        return False
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     def fetch_year(self, year, state, veh_cat):
-        """Return all maker data for one year/state/category."""
+        """Return all maker data for one year/state/category.
+
+        Uses the Next-button state on the initial page, then row count
+        (25 rows = more pages; <25 = last page) on subsequent pages.
+        """
         print(f"  Fetching {veh_cat} / {year} / state={state} …", end=" ", flush=True)
 
         xml  = self._post(self._base_params(year, state, veh_cat))
@@ -268,21 +289,28 @@ class VAHANScraper:
             self.view_state = new_vs
 
         all_makers = self._parse_table(html)
-        total_pages = self._get_total_pages(html)
-        print(f"{total_pages} pages", end="", flush=True)
+        has_more = self._has_next_page(html)
+        page_idx = 1
 
-        for page_idx in range(1, total_pages):
-            time.sleep(0.6)
+        while has_more:
+            time.sleep(0.8)
             first_row = page_idx * 25
             xml  = self._post(self._paginator_params(first_row))
             html, new_vs = self._extract_from_xml(xml)
             if new_vs:
                 self.view_state = new_vs
-            all_makers.update(self._parse_table(html))
-            if (page_idx + 1) % 20 == 0:
-                print(f"…{page_idx + 1}", end="", flush=True)
+            new_rows = self._parse_table(html)
+            if not new_rows:
+                break
+            all_makers.update(new_rows)
+            page_idx += 1
+            if page_idx % 20 == 0:
+                print(f"…{page_idx}", end="", flush=True)
+            # Pagination responses don't include paginator HTML;
+            # keep going while we get a full page of 25 rows
+            has_more = len(new_rows) >= 25
 
-        print(f" → {len(all_makers)} makers total")
+        print(f"{page_idx} pages → {len(all_makers)} makers total")
         return all_makers
 
     def normalise_maker(self, raw_name):
@@ -318,11 +346,28 @@ def main():
         for state_code, state_name in FETCH_STATES:
             for year in YEARS_TO_FETCH:
                 time.sleep(1.0)
+                # Always re-init before each fetch — session expires after many pages
                 try:
-                    raw = scraper.fetch_year(year, state_code, veh_cat)
+                    scraper.init_session()
                 except Exception as e:
-                    print(f"  ERROR: {e}")
-                    continue
+                    print(f"  Session init failed: {e}")
+
+                for attempt in range(3):
+                    try:
+                        raw = scraper.fetch_year(year, state_code, veh_cat)
+                        break
+                    except Exception as e:
+                        print(f"  ERROR (attempt {attempt+1}/3): {e}")
+                        if attempt < 2:
+                            print(f"  Retrying in 5s…")
+                            time.sleep(5)
+                            try:
+                                scraper.init_session()
+                            except Exception:
+                                pass
+                        else:
+                            raw = {}
+                            break
 
                 for raw_name, month_data in raw.items():
                     canonical = scraper.normalise_maker(raw_name)
