@@ -1,0 +1,192 @@
+{
+  "generated_at": "2026-10-13T11:31:57.531165",
+  "brands": {
+    "BAJAJ AUTO LTD": {
+      "label": "Bajaj Auto",
+      "color": "#f97316",
+      "group": "bajaj",
+      "monthly": {
+        "2025": {
+          "JAN": 449756,
+          "FEB": 398212,
+          "MAR": 433858,
+          "APR": 453838,
+          "MAY": 462652,
+          "JUN": 409588,
+          "JUL": 376892,
+          "AUG": 360164,
+          "SEP": 375326,
+          "OCT": 783342,
+          "NOV": 636508,
+          "DEC": 368636
+        },
+        "2026": {
+          "JAN": 504620,
+          "FEB": 473240,
+          "MAR": 539578,
+          "APR": 506606,
+          "MAY": 483076,
+          "JUN": 467572,
+          "JUL": 459698,
+          "AUG": 408212,
+          "SEP": 430598,
+          "OCT": 121704
+        }
+      },
+      "states": {}
+    },
+    "KTM MOTORRAD AG": {
+      "label": "PB-KTM",
+      "color": "#ef4444",
+      "group": "bajaj",
+      "monthly": {
+        "2025": {},
+        "2026": {}
+      },
+      "states": {}
+    },
+    "TRIUMPH MOTORCYCLES INDIA": {
+      "label": "Triumph",
+      "color": "#06b6d4",
+      "group": "bajaj",
+      "monthly": {
+        "2025": {},
+        "2026": {}
+      },
+      "states": {}
+    },
+    "HUSQVARNA": {
+      "label": "Husqvarna",
+      "color": "#8b5cf6",
+      "group": "bajaj",
+      "monthly": {
+        "2025": {},
+        "2026": {}
+      },
+      "states": {}
+    },
+    "CHETAK TECHNOLOGY LTD": {
+      "label": "Chetak",
+      "color": "#22c55e",
+      "group": "bajaj",
+      "monthly": {
+        "2025": {},
+        "2026": {}
+      },
+      "states": {}
+    },
+    "BGAUSS AUTO PVT LTD": {
+      "label": "Bgauss",
+      "color": "#ec4899",
+      "group": "ev",
+      "monthly": {
+        "2025": {
+          "JAN": 2944,
+          "FEB": 2658,
+          "MAR": 6780,
+          "APR": 2656,
+          "MAY": 2164,
+          "JUN": 3950,
+          "JUL": 3526,
+          "AUG": 3458,
+          "SEP": 5048,
+          "OCT": 6154,
+          "NOV": 5902,
+          "DEC": 5022
+        },
+        "2026": {
+          "JAN": 5078,
+          "FEB": 5446,
+          "MAR": 7548,
+          "APR": 6460,
+          "MAY": 6600,
+          "JUN": 7948,
+          "JUL": 11120,
+          "AUG": 10092,
+          "SEP": 10048,
+          "OCT": 2590
+        }
+      },
+      "states": {}
+    },
+    "AMPERE VEHICLES PVT LTD": {
+      "label": "Ampere",
+      "color": "#3b82f6",
+      "group": "ev",
+      "monthly": {
+        "2025": {
+          "JAN": 50,
+          "FEB": 52,
+          "MAR": 44,
+          "APR": 36,
+          "MAY": 12,
+          "JUN": 48,
+          "JUL": 10,
+          "AUG": 20,
+          "SEP": 14,
+          "OCT": 12,
+          "NOV": 2,
+          "DEC": 4
+        },
+        "2026": {
+          "JAN": 2,
+          "FEB": 2,
+          "MAR": 16,
+          "APR": 6,
+          "MAY": 6,
+          "JUN": 10,
+          "JUL": 4,
+          "AUG": 4,
+          "SEP": 2,
+          "OCT": 2
+        }
+      },
+      "states": {}
+    },
+    "ATHER ENERGY LTD": {
+      "label": "Ather Energy",
+      "color": "#eab308",
+      "group": "ev",
+      "monthly": {
+        "2025": {
+          "JAN": 28100,
+          "FEB": 25846,
+          "MAR": 34042,
+          "APR": 28684,
+          "MAY": 28210,
+          "JUN": 32036,
+          "JUL": 35670,
+          "AUG": 38938,
+          "SEP": 39240,
+          "OCT": 60492,
+          "NOV": 44404,
+          "DEC": 37270
+        },
+        "2026": {
+          "JAN": 46974,
+          "FEB": 43830,
+          "MAR": 73258,
+          "APR": 58042,
+          "MAY": 57302,
+          "JUN": 63058,
+          "JUL": 61404,
+          "AUG": 58218,
+          "SEP": 61510,
+          "OCT": 17884
+        }
+      },
+      "states": {}
+    },
+    "PIAGGIO VEHICLES PVT LTD": {
+      "label": "Piaggio",
+      "color": "#14b8a6",
+      "group": "other",
+      "monthly": {
+        "2025": {},
+        "2026": {}
+      },
+      "states": {}
+    }
+  },
+  "states_fetched": []
+}

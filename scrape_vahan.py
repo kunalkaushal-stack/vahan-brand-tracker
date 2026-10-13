@@ -66,10 +66,10 @@ BRANDS = {
     "PIAGGIO VEHICLES PVT LTD":     {"label": "Piaggio",       "group": "other",  "color": "#14b8a6"},
 }
 
-# Vehicle category groups to fetch (2W = motorcycles/scooters, 3W = three-wheelers)
+# Vehicle category groups to fetch — VhCatg checkbox values sent as a list
 VEH_CATEGORIES = {
-    "2W": "2W|1,2,3,4,5,51,52,53|2WIC,2WN,2WT",
-    "3W": "3W|6,54,55,57,58|3WN,3WT",
+    "2W": ["2WIC", "2WN", "2WT"],
+    "3W": ["3WIC", "3WN", "3WT"],
 }
 
 # States to fetch breakdown for (add/remove as needed; '' = all India)
@@ -109,7 +109,11 @@ class VAHANScraper:
         print("→ Connecting to VAHAN…")
         resp = self.session.get(VAHAN_URL, timeout=30)
         resp.raise_for_status()
-        m = re.search(r'name="javax\.faces\.ViewState"\s+value="([^"]+)"', resp.text)
+        # Match name="javax.faces.ViewState" with optional attributes (e.g. id=) between name and value
+        m = re.search(r'name="javax\.faces\.ViewState"[^>]*?value="([^"]+)"', resp.text)
+        if not m:
+            # Fallback: match value first, then name on same input tag
+            m = re.search(r'value="([^"]+)"[^>]*?name="javax\.faces\.ViewState"', resp.text)
         if not m:
             raise RuntimeError("Could not extract ViewState — VAHAN layout may have changed.")
         self.view_state = m.group(1)
@@ -118,7 +122,7 @@ class VAHANScraper:
     # ── POST helpers ──────────────────────────────────────────────────────────
 
     def _base_params(self, year, state, veh_cat):
-        return {
+        params = {
             "javax.faces.partial.ajax": "true",
             "javax.faces.source": "j_idt70",
             "javax.faces.partial.execute": "@all",
@@ -133,9 +137,10 @@ class VAHANScraper:
             "xaxisVar_focus": "", "xaxisVar_input": "Month Wise",
             "selectedYearType_focus": "", "selectedYearType_input": "C",
             "selectedYear_focus": "", "selectedYear_input": str(year),
-            "vchgroupTable:selectCatgGrp_input": VEH_CATEGORIES[veh_cat],
+            "VhCatg": VEH_CATEGORIES[veh_cat],  # list of checkbox values
             "javax.faces.ViewState": self.view_state,
         }
+        return params
 
     def _paginator_params(self, first_row):
         return {
@@ -170,28 +175,41 @@ class VAHANScraper:
     # ── XML / HTML parsing ────────────────────────────────────────────────────
 
     def _extract_from_xml(self, xml_text):
-        """Return (table_html, new_view_state) from JSF partial response."""
-        # Sanitise XML entities that aren't properly escaped
-        xml_text = re.sub(r"&(?!amp;|lt;|gt;|quot;|apos;|#)", "&amp;", xml_text)
-        try:
-            root = ET.fromstring(xml_text)
-        except ET.ParseError as e:
-            print(f"  Warning: XML parse error ({e}) — trying regex fallback")
-            html = ""
-            m = re.search(r"<update id=\"groupingTable\"[^>]*><!\[CDATA\[(.*?)\]\]>", xml_text, re.DOTALL)
-            if m:
-                html = m.group(1)
-            return html, None
+        """Return (table_html, new_view_state) from JSF partial response.
 
-        table_html = ""
+        Initial load returns groupingTable inside combTablePnl CDATA;
+        pagination requests return groupingTable as a direct update element.
+        """
+        # Update ViewState via regex first (works regardless of XML parse success)
         new_vs = None
-        for el in root.iter():
-            eid = el.get("id", "")
-            if eid == "groupingTable":
-                table_html = el.text or ""
-            elif eid == "javax.faces.ViewState":
-                new_vs = el.text
-        return table_html, new_vs
+        vs_m = re.search(r'<update id="j_id1:javax\.faces\.ViewState:0"[^>]*><!\[CDATA\[(.*?)\]\]>', xml_text, re.DOTALL)
+        if not vs_m:
+            vs_m = re.search(r'<update id="javax\.faces\.ViewState"[^>]*><!\[CDATA\[(.*?)\]\]>', xml_text, re.DOTALL)
+        if vs_m:
+            new_vs = vs_m.group(1).strip()
+
+        # Try direct groupingTable update (pagination responses)
+        m = re.search(r'<update id="groupingTable"[^>]*><!\[CDATA\[(.*?)\]\]>', xml_text, re.DOTALL)
+        if m:
+            return m.group(1), new_vs
+
+        # Initial load: groupingTable is inside combTablePnl CDATA
+        m = re.search(r'<update id="combTablePnl"[^>]*><!\[CDATA\[(.*?)\]\]>', xml_text, re.DOTALL)
+        if m:
+            return m.group(1), new_vs
+
+        # Fallback: XML parse
+        xml_text_safe = re.sub(r"&(?!amp;|lt;|gt;|quot;|apos;|#)", "&amp;", xml_text)
+        try:
+            root = ET.fromstring(xml_text_safe)
+            for el in root.iter():
+                eid = el.get("id", "")
+                if eid in ("groupingTable", "combTablePnl"):
+                    return el.text or "", new_vs
+        except ET.ParseError:
+            pass
+
+        return "", new_vs
 
     def _parse_table(self, html):
         """Extract {maker_name: {MON: count, …}} from table HTML."""
