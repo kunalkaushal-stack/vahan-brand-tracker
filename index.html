@@ -6,6 +6,7 @@
 <title>VAHAN Brand Tracker</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <style>
@@ -331,7 +332,8 @@ table.cmp tr:hover td { background: var(--muted) }
     <span>●</span> <span id="status-text">Sample data loaded</span>
   </div>
   <div class="header-actions">
-    <button class="btn btn-ghost" onclick="loadRealData()">↻ Load vahan_data.json</button>
+    <button class="btn btn-ghost" id="refresh-btn" onclick="loadRealData()">↻ Refresh</button>
+    <button class="btn btn-ghost" onclick="downloadExcel()">↓ Excel</button>
     <button class="btn btn-primary" onclick="openVAHAN()">Open VAHAN ↗</button>
   </div>
 </header>
@@ -947,9 +949,11 @@ function toggleDataset(chart, label) {
 //  DATA LOADING
 // ═══════════════════════════════════════════════════════════════
 async function loadRealData() {
-  showLoader("Fetching vahan_data.json…");
+  const btn = document.getElementById("refresh-btn");
+  if (btn) { btn.textContent = "↻ Refreshing…"; btn.disabled = true; }
+  showLoader("Fetching latest vahan_data.json…");
   try {
-    const res = await fetch("vahan_data.json");
+    const res = await fetch("vahan_data.json?t=" + Date.now());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     hideLoader();
@@ -961,11 +965,102 @@ async function loadRealData() {
     document.getElementById("status-text").textContent = "Updated " + ts;
     document.getElementById("status-text").style.color = "#22c55e";
     init(data);
-    toast("✓ Real data loaded");
+    toast("✓ Data refreshed");
   } catch (e) {
     hideLoader();
-    toast("⚠ Could not load vahan_data.json — run scrape_vahan.py first, then serve via: python -m http.server 8080");
+    toast("⚠ No vahan_data.json found — run scrape_vahan.py first");
+  } finally {
+    if (btn) { btn.textContent = "↻ Refresh"; btn.disabled = false; }
   }
+}
+
+function downloadExcel() {
+  if (!DATA) { toast("No data loaded"); return; }
+  if (typeof XLSX === "undefined") { toast("⚠ Excel library not loaded"); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: Monthly registrations ──────────────────────────────
+  const {labels, keys} = getPeriodMonths();
+  const brandKeys = Object.keys(DATA.brands);
+  const brandLabels = brandKeys.map(k => DATA.brands[k].label);
+
+  const monthlyRows = [["Month", ...brandLabels, "Total (All Brands)"]];
+  for (let i = 0; i < keys.length; i++) {
+    const {year, month} = keys[i];
+    const row = [labels[i]];
+    let rowTotal = 0;
+    for (const k of brandKeys) {
+      const v = (DATA.brands[k].monthly[year] || {})[month] || 0;
+      row.push(v);
+      rowTotal += v;
+    }
+    row.push(rowTotal);
+    monthlyRows.push(row);
+  }
+  // Totals row
+  const totalsRow = ["TOTAL (Period)"];
+  let grandTotal = 0;
+  for (const k of brandKeys) {
+    const t = getBrandTotal(k);
+    totalsRow.push(t);
+    grandTotal += t;
+  }
+  totalsRow.push(grandTotal);
+  monthlyRows.push(totalsRow);
+
+  const wsMonthly = XLSX.utils.aoa_to_sheet(monthlyRows);
+  XLSX.utils.book_append_sheet(wb, wsMonthly, "Monthly");
+
+  // ── Sheet 2: State-wise breakdown ───────────────────────────────
+  const allStates = [...new Set(
+    Object.values(DATA.brands).flatMap(b => Object.keys(b.states || {}))
+  )].sort();
+
+  const stateRows = [["State", ...brandLabels, "Total (All Brands)"]];
+  for (const state of allStates) {
+    const row = [state];
+    let rowTotal = 0;
+    for (const k of brandKeys) {
+      const v = (DATA.brands[k].states || {})[state] || 0;
+      row.push(v);
+      rowTotal += v;
+    }
+    row.push(rowTotal);
+    stateRows.push(row);
+  }
+  const wsStates = XLSX.utils.aoa_to_sheet(stateRows);
+  XLSX.utils.book_append_sheet(wb, wsStates, "State-wise");
+
+  // ── Sheet 3: Brand summary ───────────────────────────────────────
+  const summaryRows = [[
+    "Brand", "Group", "Total Registrations", "Monthly Average",
+    "Latest Month", "MoM %", "H1→H2 Growth %", "Share % (tracked)"
+  ]];
+  const allTotals = brandKeys.map(k => getBrandTotal(k));
+  const grandSum = allTotals.reduce((a, b) => a + b, 0);
+  for (let idx = 0; idx < brandKeys.length; idx++) {
+    const k = brandKeys[idx];
+    const b = DATA.brands[k];
+    const monthly = getBrandMonthly(k);
+    const total = allTotals[idx];
+    const avg = monthly.length ? Math.round(total / monthly.length) : 0;
+    const last = monthly[monthly.length - 1] || 0;
+    const prev = monthly[monthly.length - 2] || 0;
+    const mom = prev ? +((last - prev) / prev * 100).toFixed(1) : 0;
+    const firstHalf = monthly.slice(0, Math.ceil(monthly.length / 2)).reduce((a, v) => a + v, 0);
+    const secondHalf = monthly.slice(Math.ceil(monthly.length / 2)).reduce((a, v) => a + v, 0);
+    const growth = firstHalf ? +((secondHalf - firstHalf) / firstHalf * 100).toFixed(1) : 0;
+    const share = grandSum ? +(total / grandSum * 100).toFixed(1) : 0;
+    summaryRows.push([b.label, b.group, total, avg, last, mom, growth, share]);
+  }
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+
+  const period = {"aug25-aug26":"Aug25-Aug26","fy2526":"FY2526","cy2026":"CY2026YTD"}[activePeriod] || "period";
+  const filename = `VAHAN_Tracker_${period}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  toast("↓ Excel downloaded — 3 sheets");
 }
 
 function openVAHAN() {
