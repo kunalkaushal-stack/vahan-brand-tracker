@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VAHAN Brand Tracker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<style>
+/* ─── Token system ─────────────────────────────────────────────── */
+:root {
+  /* Dark-first design — explicit light override below */
+  --bg:        #080d1a;
+  --surface:   #0e1628;
+  --card:      #131c30;
+  --border:    #1e2d4d;
+  --muted:     #253554;
+  --text:      #e2e8f0;
+  --sub:       #8195b5;
+  --accent:    #38bdf8;
+  --accent-hi: #7dd3fc;
+  --success:   #22c55e;
+  --warn:      #f59e0b;
+  --danger:    #ef4444;
+  color-scheme: dark;
+
+  /* Brand colors */
+  --c-bajaj:     #f97316;
+  --c-ktm:       #ef4444;
+  --c-triumph:   #06b6d4;
+  --c-husq:      #a78bfa;
+  --c-chetak:    #34d399;
+  --c-bgauss:    #f472b6;
+  --c-ampere:    #60a5fa;
+  --c-ather:     #fbbf24;
+  --c-piaggio:   #2dd4bf;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:      #f1f5f9; --surface: #ffffff; --card: #ffffff;
+    --border:  #e2e8f0; --muted:   #f8fafc;
+    --text:    #0f172a; --sub:     #64748b;
+    --accent:  #0284c7; --accent-hi: #0369a1;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg:      #f1f5f9; --surface: #ffffff; --card: #ffffff;
+  --border:  #e2e8f0; --muted:   #f8fafc;
+  --text:    #0f172a; --sub:     #64748b;
+  --accent:  #0284c7; --accent-hi: #0369a1;
+  color-scheme: light;
+}
+
+/* ─── Reset / base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+[hidden] { display: none !important }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  padding-block: 0;
+  padding-inline: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+button { cursor: pointer; font-family: inherit }
+a { color: inherit; text-decoration: none }
+
+/* ─── Layout ───────────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; min-height: 100vh }
+
+/* ── Header ── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 56px;
+  flex-wrap: wrap;
+}
+.header-brand {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 15px; white-space: nowrap;
+}
+.header-brand .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); display: inline-block;
+  box-shadow: 0 0 8px var(--accent);
+}
+.header-spacer { flex: 1 }
+.badge {
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  padding: 2px 8px; border-radius: 9999px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.header-actions { display: flex; align-items: center; gap: 8px }
+.btn {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  padding: 6px 14px; border-radius: 6px; border: none;
+  transition: all .15s;
+}
+.btn-primary {
+  background: var(--accent); color: #000;
+}
+.btn-primary:hover { filter: brightness(1.1) }
+.btn-ghost {
+  background: transparent; color: var(--sub);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: var(--muted); color: var(--text) }
+.data-status {
+  font-size: 11px; color: var(--sub);
+  display: flex; align-items: center; gap: 5px;
+}
+.data-status .live { color: var(--success) }
+
+/* ── Controls bar ── */
+.controls {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 24px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.filter-group { display: flex; align-items: center; gap: 8px }
+.filter-label { font-size: 11px; font-weight: 600; color: var(--sub); letter-spacing: .06em; text-transform: uppercase }
+.filter-chip {
+  font-size: 12px; padding: 4px 10px;
+  border-radius: 4px; border: 1px solid var(--border);
+  background: var(--card); color: var(--text);
+  cursor: pointer; transition: all .1s;
+}
+.filter-chip:hover, .filter-chip.active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent); color: var(--accent);
+}
+
+/* ── Brand tabs ── */
+.brand-tabs {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex; gap: 2px; overflow-x: auto;
+  scrollbar-width: none;
+}
+.brand-tabs::-webkit-scrollbar { display: none }
+.brand-tab {
+  display: flex; align-items: center; gap: 7px;
+  padding: 11px 14px; font-size: 12px; font-weight: 600;
+  border: none; background: transparent; color: var(--sub);
+  border-bottom: 2px solid transparent; white-space: nowrap;
+  cursor: pointer; transition: all .15s;
+}
+.brand-tab:hover { color: var(--text) }
+.brand-tab.active { color: var(--text); border-bottom-color: var(--brand-color, var(--accent)) }
+.brand-tab .swatch {
+  width: 8px; height: 8px; border-radius: 2px;
+  background: var(--brand-color, #888);
+}
+.brand-tab .tab-count {
+  font-size: 10px; font-weight: 600; font-family: 'Roboto Mono', monospace;
+  opacity: .7;
+}
+
+/* ── Main content ── */
+.main { padding: 24px; max-width: 1600px; margin: 0 auto; width: 100% }
+
+/* ── KPI grid ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px; margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px;
+}
+.kpi-eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--sub); margin-bottom: 8px;
+}
+.kpi-value {
+  font-size: 26px; font-weight: 700; font-family: 'Roboto Mono', monospace;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+  color: var(--text); line-height: 1.1;
+}
+.kpi-delta {
+  margin-top: 6px; font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; gap: 4px;
+}
+.kpi-delta.up { color: var(--success) }
+.kpi-delta.down { color: var(--danger) }
+.kpi-sub { margin-top: 4px; font-size: 11px; color: var(--sub) }
+
+/* ── Chart panels ── */
+.chart-row {
+  display: grid; gap: 14px; margin-bottom: 24px;
+}
+.chart-row-2 { grid-template-columns: 2fr 1fr }
+@media (max-width: 900px) { .chart-row-2 { grid-template-columns: 1fr } }
+
+.panel {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
+.panel-head {
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: 10px;
+}
+.panel-title { font-size: 13px; font-weight: 600; color: var(--text) }
+.panel-sub { font-size: 11px; color: var(--sub) }
+.panel-head-spacer { flex: 1 }
+.panel-body { padding: 16px }
+.chart-wrap { position: relative; width: 100% }
+
+/* ── Comparison table ── */
+.table-scroll { overflow-x: auto }
+table.cmp {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+table.cmp th {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--sub);
+  padding: 8px 12px; text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+table.cmp th:first-child { text-align: left }
+table.cmp td {
+  padding: 8px 12px; text-align: right;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  white-space: nowrap;
+}
+table.cmp td:first-child { text-align: left }
+table.cmp tr:last-child td { border-bottom: none }
+table.cmp tr:hover td { background: var(--muted) }
+.brand-cell { display: flex; align-items: center; gap: 8px }
+.brand-swatch {
+  width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+}
+.brand-name { font-weight: 600; color: var(--text) }
+.cell-bar {
+  display: inline-block; height: 4px; border-radius: 2px;
+  vertical-align: middle; margin-left: 6px; opacity: .7;
+}
+.pos { color: var(--success) }
+.neg { color: var(--danger) }
+.neutral { color: var(--sub) }
+
+/* ── Legend ── */
+.legend {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+.legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; cursor: pointer; padding: 2px 4px; border-radius: 4px;
+}
+.legend-item:hover { background: var(--muted) }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px }
+
+/* ── Loading / empty ── */
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(8,13,26,.85);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px; z-index: 9999;
+}
+.spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg) } }
+.loading-text { color: var(--sub); font-size: 13px }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 16px;
+  font-size: 12px; color: var(--text);
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  transform: translateY(80px); opacity: 0;
+  transition: all .3s; z-index: 999;
+}
+.toast.show { transform: translateY(0); opacity: 1 }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  header { padding: 0 14px; }
+  .controls, .brand-tabs { padding: 8px 14px }
+  .main { padding: 14px }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr) }
+  .panel-head { padding: 12px 14px 8px }
+  .panel-body { padding: 12px }
+}
+</style>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loader" hidden>
+  <div class="spinner"></div>
+  <div class="loading-text" id="loader-text">Loading VAHAN data…</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="app">
+
+<!-- ── Header ── -->
+<header>
+  <div class="header-brand">
+    <span class="dot"></span>
+    VAHAN Brand Tracker
+  </div>
+  <span class="badge" id="data-badge">Demo Data</span>
+  <div class="header-spacer"></div>
+  <div class="data-status" id="data-status">
+    <span>●</span> <span id="status-text">Sample data loaded</span>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost" onclick="loadRealData()">↻ Load vahan_data.json</button>
+    <button class="btn btn-primary" onclick="openVAHAN()">Open VAHAN ↗</button>
+  </div>
+</header>
+
+<!-- ── Controls ── -->
+<div class="controls">
+  <div class="filter-group">
+    <span class="filter-label">Period</span>
+    <button class="filter-chip active" data-period="aug25-aug26" onclick="setPeriod(this)">Aug '25 – Aug '26</button>
+    <button class="filter-chip" data-period="fy2526" onclick="setPeriod(this)">FY 2025-26</button>
+    <button class="filter-chip" data-period="cy2026" onclick="setPeriod(this)">CY 2026 YTD</button>
+  </div>
+  <div class="filter-group" style="margin-left:auto">
+    <span class="filter-label">Category</span>
+    <button class="filter-chip active" data-cat="all" onclick="setCategory(this,'all')">All</button>
+    <button class="filter-chip" data-cat="2W" onclick="setCategory(this,'2W')">2-Wheeler</button>
+    <button class="filter-chip" data-cat="3W" onclick="setCategory(this,'3W')">3-Wheeler</button>
+  </div>
+</div>
+
+<!-- ── Brand tabs ── -->
+<div class="brand-tabs" id="brand-tabs"></div>
+
+<!-- ── Main ── -->
+<div class="main">
+
+  <!-- KPI row -->
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <!-- Trend + share -->
+  <div class="chart-row chart-row-2">
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Monthly Registrations</span>
+        <span class="panel-sub" id="trend-period-label"></span>
+        <div class="panel-head-spacer"></div>
+        <select id="trend-mode" class="filter-chip" onchange="renderTrend()" style="padding:3px 8px">
+          <option value="absolute">Absolute</option>
+          <option value="growth">MoM Growth %</option>
+        </select>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap" style="height:280px">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+      <div class="legend" id="trend-legend"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Market Share</span>
+        <span class="panel-sub" id="share-period-label"></span>
+      </div>
+      <div class="panel-body" style="display:flex;justify-content:center">
+        <div class="chart-wrap" style="height:220px;max-width:220px">
+          <canvas id="shareChart"></canvas>
+        </div>
+      </div>
+      <div class="legend" id="share-legend" style="justify-content:center"></div>
+    </div>
+  </div>
+
+  <!-- State chart -->
+  <div class="chart-row" style="margin-bottom:24px">
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">State-wise Registrations</span>
+        <span class="panel-sub">Top states, Aug '25 – Aug '26 combined</span>
+        <div class="panel-head-spacer"></div>
+        <select id="state-brand" class="filter-chip" onchange="renderStateChart()" style="padding:3px 8px"></select>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap" style="height:260px">
+          <canvas id="stateChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparison table -->
+  <div class="panel" style="margin-bottom:24px">
+    <div class="panel-head">
+      <span class="panel-title">Brand Comparison</span>
+      <span class="panel-sub">Aug 2025 – Aug 2026 • All India</span>
+    </div>
+    <div class="table-scroll">
+      <table class="cmp" id="cmpTable"></table>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  SAMPLE DATA  (replaced when real vahan_data.json is loaded)
+// ═══════════════════════════════════════════════════════════════
+const SAMPLE_DATA = {
+  generated_at: "2026-10-13T00:00:00 (sample)",
+  brands: {
+    "BAJAJ AUTO LTD": {
+      label: "Bajaj Auto", color: "#f97316", group: "bajaj",
+      monthly: {
+        "2025": {JAN:190000,FEB:175000,MAR:210000,APR:185000,MAY:195000,JUN:180000,
+                 JUL:200000,AUG:187000,SEP:192000,OCT:205000,NOV:215000,DEC:230000},
+        "2026": {JAN:195000,FEB:182000,MAR:220000,APR:193000,MAY:201000,JUN:188000,
+                 JUL:207000,AUG:198000}
+      },
+      states: {Maharashtra:380000,Rajasthan:310000,"Uttar Pradesh":290000,
+               Karnataka:245000,"Tamil Nadu":220000,Gujarat:205000,
+               Haryana:198000,Telangana:175000,Kerala:152000,"Andhra Pradesh":148000}
+    },
+    "KTM MOTORRAD AG": {
+      label: "PB-KTM", color: "#ef4444", group: "bajaj",
+      monthly: {
+        "2025": {JAN:9200,FEB:8700,MAR:11500,APR:9800,MAY:10200,JUN:9500,
+                 JUL:10800,AUG:9700,SEP:10500,OCT:11200,NOV:10900,DEC:12500},
+        "2026": {JAN:10500,FEB:9800,MAR:13200,APR:11000,MAY:11500,JUN:10200,
+                 JUL:11800,AUG:10900}
+      },
+      states: {Maharashtra:18500,Karnataka:15200,Delhi:12800,
+               Gujarat:10500,"Tamil Nadu":9800,Haryana:9200,
+               Rajasthan:8500,Telangana:7800,"Uttar Pradesh":7200,Pune:6800}
+    },
+    "TRIUMPH MOTORCYCLES INDIA": {
+      label: "Triumph", color: "#06b6d4", group: "bajaj",
+      monthly: {
+        "2025": {JAN:920,FEB:870,MAR:1150,APR:980,MAY:1020,JUN:950,
+                 JUL:1080,AUG:970,SEP:1050,OCT:1120,NOV:1090,DEC:1250},
+        "2026": {JAN:1050,FEB:980,MAR:1320,APR:1100,MAY:1150,JUN:1020,
+                 JUL:1180,AUG:1090}
+      },
+      states: {Maharashtra:2850,Karnataka:2450,Delhi:2180,
+               Gujarat:1750,"Tamil Nadu":1620,Haryana:1420,
+               Rajasthan:1250,Telangana:1180,"Uttar Pradesh":1050,Kerala:980}
+    },
+    "HUSQVARNA": {
+      label: "Husqvarna", color: "#a78bfa", group: "bajaj",
+      monthly: {
+        "2025": {JAN:520,FEB:490,MAR:650,APR:540,MAY:580,JUN:510,
+                 JUL:600,AUG:540,SEP:580,OCT:620,NOV:590,DEC:700},
+        "2026": {JAN:580,FEB:540,MAR:730,APR:610,MAY:640,JUN:570,
+                 JUL:660,AUG:600}
+      },
+      states: {Maharashtra:1580,Karnataka:1320,Delhi:1180,
+               Gujarat:980,"Tamil Nadu":920,Haryana:850,
+               Rajasthan:780,Telangana:720,"Uttar Pradesh":680,Kerala:620}
+    },
+    "CHETAK TECHNOLOGY LTD": {
+      label: "Chetak", color: "#34d399", group: "bajaj",
+      monthly: {
+        "2025": {JAN:8200,FEB:7600,MAR:10500,APR:9200,MAY:9800,JUN:8500,
+                 JUL:10200,AUG:9600,SEP:10800,OCT:11500,NOV:12200,DEC:14000},
+        "2026": {JAN:12500,FEB:11800,MAR:15200,APR:13200,MAY:14500,JUN:12800,
+                 JUL:15500,AUG:14200}
+      },
+      states: {Rajasthan:28500,Maharashtra:22000,"Uttar Pradesh":18500,
+               Gujarat:15800,Delhi:12500,Haryana:11200,
+               Karnataka:9800,"Madhya Pradesh":8500,Punjab:7800,"Tamil Nadu":7200}
+    },
+    "BGAUSS AUTO PVT LTD": {
+      label: "Bgauss", color: "#f472b6", group: "ev",
+      monthly: {
+        "2025": {JAN:2100,FEB:1950,MAR:2600,APR:2200,MAY:2400,JUN:2050,
+                 JUL:2500,AUG:2300,SEP:2600,OCT:2900,NOV:3100,DEC:3500},
+        "2026": {JAN:3200,FEB:3000,MAR:3800,APR:3300,MAY:3600,JUN:3100,
+                 JUL:3900,AUG:3500}
+      },
+      states: {Maharashtra:12500,Gujarat:9800,Rajasthan:7500,
+               Delhi:6200,Karnataka:5800,"Uttar Pradesh":4900,
+               "Tamil Nadu":4500,Haryana:4200,"Madhya Pradesh":3800,"West Bengal":3500}
+    },
+    "AMPERE VEHICLES PVT LTD": {
+      label: "Ampere", color: "#60a5fa", group: "ev",
+      monthly: {
+        "2025": {JAN:9800,FEB:9200,MAR:12500,APR:10500,MAY:11200,JUN:9800,
+                 JUL:11500,AUG:10800,SEP:12000,OCT:13200,NOV:14500,DEC:16500},
+        "2026": {JAN:15000,FEB:14200,MAR:17800,APR:15500,MAY:16800,JUN:14900,
+                 JUL:18200,AUG:16500}
+      },
+      states: {Karnataka:28500,"Tamil Nadu":24200,Rajasthan:22000,
+               Maharashtra:18500,"Andhra Pradesh":15800,Gujarat:14200,
+               Telangana:12500,Kerala:11800,"Uttar Pradesh":10500,Haryana:9800}
+    },
+    "ATHER ENERGY LTD": {
+      label: "Ather Energy", color: "#fbbf24", group: "ev",
+      monthly: {
+        "2025": {JAN:13500,FEB:12800,MAR:17200,APR:14500,MAY:15800,JUN:13200,
+                 JUL:16500,AUG:15000,SEP:16800,OCT:18500,NOV:20200,DEC:23000},
+        "2026": {JAN:20500,FEB:19200,MAR:24500,APR:21200,MAY:23000,JUN:20500,
+                 JUL:25500,AUG:22800}
+      },
+      states: {Karnataka:38500,"Tamil Nadu":32200,Maharashtra:28000,
+               Telangana:22500,"Andhra Pradesh":18800,Gujarat:15200,
+               Kerala:13800,Delhi:12500,Rajasthan:11200,"Uttar Pradesh":9800}
+    },
+    "PIAGGIO VEHICLES PVT LTD": {
+      label: "Piaggio", color: "#2dd4bf", group: "other",
+      monthly: {
+        "2025": {JAN:42000,FEB:39500,MAR:52000,APR:44500,MAY:47000,JUN:41500,
+                 JUL:48500,AUG:45000,SEP:50000,OCT:54000,NOV:58000,DEC:65000},
+        "2026": {JAN:58000,FEB:54500,MAR:68000,APR:59500,MAY:63000,JUN:57000,
+                 JUL:68500,AUG:62000}
+      },
+      states: {Maharashtra:95000,"Uttar Pradesh":82000,Rajasthan:75000,
+               Gujarat:68000,"Tamil Nadu":62000,Karnataka:55000,
+               Delhi:48000,Haryana:45000,"Madhya Pradesh":42000,"West Bengal":38000}
+    }
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let DATA = null;
+let activeBrand = null;
+let activePeriod = "aug25-aug26";
+let activeCategory = "all";
+let charts = {};
+
+const MONTHS_ALL = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const MONTH_LABELS = {JAN:"Jan",FEB:"Feb",MAR:"Mar",APR:"Apr",MAY:"May",JUN:"Jun",
+                      JUL:"Jul",AUG:"Aug",SEP:"Sep",OCT:"Oct",NOV:"Nov",DEC:"Dec"};
+
+const PERIOD_DEFS = {
+  "aug25-aug26": [
+    {year:"2025", months:["AUG","SEP","OCT","NOV","DEC"]},
+    {year:"2026", months:["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG"]}
+  ],
+  "fy2526": [
+    {year:"2025", months:["APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]},
+    {year:"2026", months:["JAN","FEB","MAR"]}
+  ],
+  "cy2026": [
+    {year:"2026", months:["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]}
+  ],
+};
+
+function getPeriodSlices() { return PERIOD_DEFS[activePeriod] || PERIOD_DEFS["aug25-aug26"]; }
+
+function getPeriodMonths() {
+  const slices = getPeriodSlices();
+  const labels = [], keys = [];
+  for (const {year, months} of slices) {
+    for (const m of months) {
+      labels.push(MONTH_LABELS[m] + " '" + year.slice(2));
+      keys.push({year, month: m});
+    }
+  }
+  return {labels, keys};
+}
+
+function getBrandTotal(brandKey) {
+  const b = DATA.brands[brandKey];
+  if (!b) return 0;
+  let total = 0;
+  for (const {year, months} of getPeriodSlices()) {
+    const yd = b.monthly[year] || {};
+    for (const m of months) total += (yd[m] || 0);
+  }
+  return total;
+}
+
+function getBrandMonthly(brandKey) {
+  const b = DATA.brands[brandKey];
+  if (!b) return [];
+  const {keys} = getPeriodMonths();
+  return keys.map(({year, month}) => (b.monthly[year] || {})[month] || 0);
+}
+
+function fmt(n) {
+  if (n >= 100000) return (n/100000).toFixed(1) + "L";
+  if (n >= 1000) return (n/1000).toFixed(1) + "K";
+  return n.toString();
+}
+function fmtFull(n) { return n.toLocaleString("en-IN") }
+function pct(a, b) { return b ? ((a-b)/b*100).toFixed(1) : "—" }
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════
+function init(data) {
+  DATA = data;
+  const brands = Object.keys(DATA.brands);
+  activeBrand = brands[0];
+  buildBrandTabs();
+  buildStateBrandSelect();
+  renderAll();
+}
+
+function buildBrandTabs() {
+  const el = document.getElementById("brand-tabs");
+  el.innerHTML = "";
+  for (const [key, b] of Object.entries(DATA.brands)) {
+    const total = getBrandTotal(key);
+    if (total === 0 && DATA !== SAMPLE_DATA) continue;
+    const tab = document.createElement("button");
+    tab.className = "brand-tab" + (key === activeBrand ? " active" : "");
+    tab.style.setProperty("--brand-color", b.color);
+    tab.dataset.key = key;
+    tab.innerHTML = `<span class="swatch"></span>${b.label}<span class="tab-count">${fmt(total)}</span>`;
+    tab.onclick = () => { activeBrand = key; buildBrandTabs(); renderAll() };
+    el.appendChild(tab);
+  }
+}
+
+function buildStateBrandSelect() {
+  const sel = document.getElementById("state-brand");
+  sel.innerHTML = "";
+  for (const [key, b] of Object.entries(DATA.brands)) {
+    const opt = document.createElement("option");
+    opt.value = key; opt.text = b.label;
+    sel.appendChild(opt);
+  }
+  sel.value = activeBrand;
+}
+
+function renderAll() {
+  renderKPIs();
+  renderTrend();
+  renderShare();
+  renderStateChart();
+  renderTable();
+  // Update period label
+  const map = {"aug25-aug26":"Aug '25 – Aug '26","fy2526":"FY 2025-26","cy2026":"CY 2026 YTD"};
+  document.getElementById("trend-period-label").textContent = map[activePeriod] || "";
+  document.getElementById("share-period-label").textContent = map[activePeriod] || "";
+}
+
+// ── KPIs ──────────────────────────────────────────────────────
+function renderKPIs() {
+  const b = DATA.brands[activeBrand];
+  if (!b) return;
+
+  const total = getBrandTotal(activeBrand);
+  const monthly = getBrandMonthly(activeBrand);
+  const avg = monthly.length ? Math.round(total / monthly.length) : 0;
+  const last = monthly[monthly.length - 1] || 0;
+  const prev = monthly[monthly.length - 2] || 0;
+  const mom = pct(last, prev);
+
+  // YoY: compare last 8 months of period with 8 months before
+  const {keys} = getPeriodMonths();
+  const halfLen = Math.min(8, Math.floor(keys.length/2));
+  const recentHalf = monthly.slice(-halfLen).reduce((a,b)=>a+b,0);
+  const prevHalf   = monthly.slice(-halfLen*2,-halfLen).reduce((a,b)=>a+b,0);
+  const yoy = pct(recentHalf, prevHalf);
+
+  // Market context
+  const allTotals = Object.keys(DATA.brands).map(k => getBrandTotal(k));
+  const grandTotal = allTotals.reduce((a,b)=>a+b,0);
+  const share = grandTotal ? (total/grandTotal*100).toFixed(1) : "—";
+
+  const kpis = [
+    {label:"Total Registrations", value:fmtFull(total), sub:`${b.label} • Period total`},
+    {label:"Monthly Average",     value:fmtFull(avg),    sub:"Avg per month"},
+    {label:"Latest Month",        value:fmtFull(last),   delta:mom, sub:"vs previous month"},
+    {label:"Share (tracked)",     value:share+"%",       sub:"vs 9 brands tracked"},
+  ];
+
+  const grid = document.getElementById("kpi-grid");
+  grid.innerHTML = kpis.map(k => `
+    <div class="kpi-card" style="border-top:3px solid ${b.color}">
+      <div class="kpi-eyebrow">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      ${k.delta !== undefined ? `<div class="kpi-delta ${+k.delta>0?'up':'down'}">${+k.delta>0?'▲':'▼'} ${Math.abs(+k.delta)}%</div>` : ""}
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join("");
+}
+
+// ── Trend chart ───────────────────────────────────────────────
+function renderTrend() {
+  const mode = document.getElementById("trend-mode").value;
+  const {labels, keys} = getPeriodMonths();
+
+  const datasets = Object.entries(DATA.brands).map(([key, b]) => {
+    let raw = getBrandMonthly(key);
+    if (!raw.some(v=>v>0)) return null;
+    let data = raw;
+    if (mode === "growth") {
+      data = raw.map((v,i) => i===0 ? 0 : raw[i-1] ? +((v-raw[i-1])/raw[i-1]*100).toFixed(1) : 0);
+    }
+    return {
+      label: b.label, data,
+      borderColor: b.color, backgroundColor: b.color + "20",
+      borderWidth: key === activeBrand ? 2.5 : 1.5,
+      pointRadius: key === activeBrand ? 3 : 0,
+      pointHoverRadius: 5,
+      tension: 0.35,
+      fill: key === activeBrand && mode === "absolute",
+      hidden: false,
+      order: key === activeBrand ? 0 : 1,
+    };
+  }).filter(Boolean);
+
+  const ctx = document.getElementById("trendChart");
+  if (charts.trend) charts.trend.destroy();
+  charts.trend = new Chart(ctx, {
+    type: "line",
+    data: {labels, datasets},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: {mode:"index", intersect:false},
+      plugins: {
+        legend: {display:false},
+        tooltip: {
+          backgroundColor: "#0e1628",
+          borderColor: "#1e2d4d", borderWidth: 1,
+          titleColor: "#e2e8f0", bodyColor: "#8195b5",
+          padding: 10,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${mode==="growth" ? ctx.raw+"%" : fmtFull(ctx.raw)}`
+          }
+        }
+      },
+      scales: {
+        x: {grid:{color:"#1e2d4d30"}, ticks:{color:"#8195b5",font:{size:10}}},
+        y: {
+          grid:{color:"#1e2d4d50"},
+          ticks:{
+            color:"#8195b5", font:{size:10}, font:{family:"Roboto Mono"},
+            callback: v => mode==="growth" ? v+"%" : fmt(v)
+          }
+        }
+      }
+    }
+  });
+
+  // Legend
+  const leg = document.getElementById("trend-legend");
+  leg.innerHTML = datasets.map(ds => `
+    <span class="legend-item" onclick="toggleDataset(charts.trend, '${ds.label}')">
+      <span class="legend-dot" style="background:${ds.borderColor}"></span>
+      ${ds.label}
+    </span>`).join("");
+}
+
+// ── Share donut ───────────────────────────────────────────────
+function renderShare() {
+  const entries = Object.entries(DATA.brands)
+    .map(([k, b]) => ({label: b.label, color: b.color, total: getBrandTotal(k)}))
+    .filter(e => e.total > 0)
+    .sort((a,b) => b.total - a.total);
+
+  const ctx = document.getElementById("shareChart");
+  if (charts.share) charts.share.destroy();
+  charts.share = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: entries.map(e=>e.label),
+      datasets: [{
+        data: entries.map(e=>e.total),
+        backgroundColor: entries.map(e=>e.color),
+        borderColor: "#0e1628", borderWidth: 2, hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: "68%",
+      plugins: {
+        legend: {display:false},
+        tooltip: {
+          backgroundColor:"#0e1628", borderColor:"#1e2d4d", borderWidth:1,
+          titleColor:"#e2e8f0", bodyColor:"#8195b5", padding:10,
+          callbacks: { label: ctx => ` ${fmtFull(ctx.raw)} (${(ctx.raw/entries.reduce((a,b)=>a+b.total,0)*100).toFixed(1)}%)` }
+        }
+      }
+    }
+  });
+
+  const leg = document.getElementById("share-legend");
+  const grandTotal = entries.reduce((a,e)=>a+e.total,0);
+  leg.innerHTML = entries.map(e => `
+    <span class="legend-item">
+      <span class="legend-dot" style="background:${e.color}"></span>
+      ${e.label} <b style="opacity:.6">${(e.total/grandTotal*100).toFixed(0)}%</b>
+    </span>`).join("");
+}
+
+// ── State bar chart ───────────────────────────────────────────
+function renderStateChart() {
+  const sel = document.getElementById("state-brand");
+  const key = sel.value || activeBrand;
+  const b = DATA.brands[key];
+  if (!b) return;
+
+  const stateData = b.states || {};
+  const entries = Object.entries(stateData)
+    .sort(([,a],[,c]) => c - a)
+    .slice(0, 15);
+
+  const stateLabels = entries.map(([s]) => s.length > 18 ? s.slice(0,16)+"…" : s);
+  const stateVals   = entries.map(([,v]) => v);
+  const max = Math.max(...stateVals);
+
+  const ctx = document.getElementById("stateChart");
+  if (charts.state) charts.state.destroy();
+  charts.state = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: stateLabels,
+      datasets: [{
+        label: b.label,
+        data: stateVals,
+        backgroundColor: b.color + "cc",
+        borderColor: b.color,
+        borderWidth: 1,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {display:false},
+        tooltip: {
+          backgroundColor:"#0e1628", borderColor:"#1e2d4d", borderWidth:1,
+          titleColor:"#e2e8f0", bodyColor:"#8195b5", padding:10,
+          callbacks: { label: ctx => ` ${fmtFull(ctx.raw)} registrations` }
+        }
+      },
+      scales: {
+        x: {
+          grid:{color:"#1e2d4d40"},
+          ticks:{color:"#8195b5",font:{size:10},callback:v=>fmt(v)}
+        },
+        y: { grid:{display:false}, ticks:{color:"#8195b5",font:{size:11}} }
+      }
+    }
+  });
+}
+
+// ── Comparison table ──────────────────────────────────────────
+function renderTable() {
+  const {keys} = getPeriodMonths();
+  const entries = Object.entries(DATA.brands)
+    .map(([k, b]) => {
+      const monthly = getBrandMonthly(k);
+      const total = monthly.reduce((a,v)=>a+v,0);
+      const lastMonth = monthly[monthly.length-1]||0;
+      const prevMonth = monthly[monthly.length-2]||0;
+      const mom = prevMonth ? +((lastMonth-prevMonth)/prevMonth*100).toFixed(1) : 0;
+      const firstHalf  = monthly.slice(0, Math.ceil(monthly.length/2)).reduce((a,v)=>a+v,0);
+      const secondHalf = monthly.slice(Math.ceil(monthly.length/2)).reduce((a,v)=>a+v,0);
+      const growth = firstHalf ? +((secondHalf-firstHalf)/firstHalf*100).toFixed(1) : 0;
+      return {key:k, label:b.label, color:b.color, total, lastMonth, mom, growth, monthly};
+    })
+    .filter(e => e.total > 0)
+    .sort((a,b) => b.total - a.total);
+
+  const maxTotal = Math.max(...entries.map(e=>e.total));
+  const {labels} = getPeriodMonths();
+  // Last 3 months for sparkline columns
+  const last3Labels = labels.slice(-3);
+
+  const thead = `<thead><tr>
+    <th style="text-align:left">Brand</th>
+    <th>Total</th>
+    <th>Avg/Month</th>
+    <th>Latest Month</th>
+    <th>MoM</th>
+    <th>H1→H2 Growth</th>
+    ${last3Labels.map(l=>`<th>${l}</th>`).join("")}
+  </tr></thead>`;
+
+  const tbody = "<tbody>" + entries.map(e => {
+    const avg = Math.round(e.total / e.monthly.length);
+    const barW = Math.round((e.total / maxTotal) * 80);
+    const last3 = e.monthly.slice(-3);
+    return `<tr>
+      <td><div class="brand-cell">
+        <div class="brand-swatch" style="background:${e.color}"></div>
+        <span class="brand-name">${e.label}</span>
+      </div></td>
+      <td>${fmtFull(e.total)}
+        <span class="cell-bar" style="width:${barW}px;background:${e.color}"></span>
+      </td>
+      <td>${fmtFull(avg)}</td>
+      <td>${fmtFull(e.lastMonth)}</td>
+      <td class="${e.mom>0?'pos':e.mom<0?'neg':'neutral'}">${e.mom>0?'▲':'▼'} ${Math.abs(e.mom)}%</td>
+      <td class="${e.growth>0?'pos':e.growth<0?'neg':'neutral'}">${e.growth>0?'▲':'▼'} ${Math.abs(e.growth)}%</td>
+      ${last3.map(v=>`<td>${fmtFull(v)}</td>`).join("")}
+    </tr>`;
+  }).join("") + "</tbody>";
+
+  document.getElementById("cmpTable").innerHTML = thead + tbody;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════════════════════
+function setPeriod(btn) {
+  document.querySelectorAll("[data-period]").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  activePeriod = btn.dataset.period;
+  renderAll();
+}
+function setCategory(btn, cat) {
+  document.querySelectorAll("[data-cat]").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  activeCategory = cat;
+  renderAll();
+}
+function toggleDataset(chart, label) {
+  if (!chart) return;
+  const meta = chart.getDatasetMeta(chart.data.datasets.findIndex(d=>d.label===label));
+  meta.hidden = !meta.hidden;
+  chart.update();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DATA LOADING
+// ═══════════════════════════════════════════════════════════════
+async function loadRealData() {
+  showLoader("Fetching vahan_data.json…");
+  try {
+    const res = await fetch("vahan_data.json");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    hideLoader();
+    document.getElementById("data-badge").textContent = "Live Data";
+    document.getElementById("data-badge").style.background = "color-mix(in srgb, #22c55e 15%, transparent)";
+    document.getElementById("data-badge").style.color = "#22c55e";
+    document.getElementById("data-badge").style.borderColor = "color-mix(in srgb, #22c55e 30%, transparent)";
+    const ts = new Date(data.generated_at).toLocaleString("en-IN", {dateStyle:"medium",timeStyle:"short"});
+    document.getElementById("status-text").textContent = "Updated " + ts;
+    document.getElementById("status-text").style.color = "#22c55e";
+    init(data);
+    toast("✓ Real data loaded");
+  } catch (e) {
+    hideLoader();
+    toast("⚠ Could not load vahan_data.json — run scrape_vahan.py first, then serve via: python -m http.server 8080");
+  }
+}
+
+function openVAHAN() {
+  window.open("https://vahan.parivahan.gov.in/vahan4dashboard/vahan/view/reportview.xhtml", "_blank");
+}
+
+function showLoader(msg) {
+  document.getElementById("loader-text").textContent = msg;
+  document.getElementById("loader").hidden = false;
+}
+function hideLoader() {
+  document.getElementById("loader").hidden = true;
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 4000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════
+// Try to auto-load real data; fall back to sample
+(async () => {
+  try {
+    const res = await fetch("vahan_data.json", {cache:"no-cache"});
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById("data-badge").textContent = "Live Data";
+      document.getElementById("data-badge").style.cssText += ";background:color-mix(in srgb,#22c55e 15%,transparent);color:#22c55e;border-color:color-mix(in srgb,#22c55e 30%,transparent)";
+      const ts = new Date(data.generated_at).toLocaleString("en-IN");
+      document.getElementById("status-text").textContent = "Updated " + ts;
+      init(data);
+      return;
+    }
+  } catch(_) {}
+  init(SAMPLE_DATA);
+})();
+</script>
+</body>
+</html>
