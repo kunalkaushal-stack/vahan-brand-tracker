@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-13T11:58:23.346542",
+  "generated_at": "2026-10-13T12:35:53.887741",
   "brands": {
     "BAJAJ AUTO LTD": {
       "label": "Bajaj Auto",
@@ -33,7 +33,23 @@
           "OCT": 121704
         }
       },
-      "states": {}
+      "states": {
+        "Maharashtra": 1093184,
+        "Uttar Pradesh": 1366676,
+        "Rajasthan": 378532,
+        "Karnataka": 655486,
+        "Tamil Nadu": 800850,
+        "Gujarat": 558866,
+        "Haryana": 294092,
+        "Madhya Pradesh": 671374,
+        "Andhra Pradesh": 535288,
+        "Telangana": 502702,
+        "Delhi": 157194,
+        "Kerala": 191774,
+        "Punjab": 274650,
+        "West Bengal": 495874,
+        "Bihar": 507448
+      }
     },
     "KTM MOTORRAD AG": {
       "label": "PB-KTM",
@@ -67,7 +83,17 @@
           "OCT": 0
         }
       },
-      "states": {}
+      "states": {
+        "Maharashtra": 28,
+        "Uttar Pradesh": 2,
+        "Karnataka": 60,
+        "Tamil Nadu": 2,
+        "Gujarat": 2,
+        "Madhya Pradesh": 2,
+        "Telangana": 56,
+        "Kerala": 2,
+        "West Bengal": 10
+      }
     },
     "TRIUMPH MOTORCYCLES INDIA": {
       "label": "Triumph",
@@ -101,7 +127,23 @@
           "OCT": 48
         }
       },
-      "states": {}
+      "states": {
+        "Maharashtra": 782,
+        "Uttar Pradesh": 100,
+        "Rajasthan": 38,
+        "Karnataka": 874,
+        "Tamil Nadu": 330,
+        "Gujarat": 64,
+        "Haryana": 150,
+        "Madhya Pradesh": 36,
+        "Andhra Pradesh": 124,
+        "Telangana": 224,
+        "Delhi": 224,
+        "Kerala": 236,
+        "Punjab": 46,
+        "West Bengal": 134,
+        "Bihar": 14
+      }
     },
     "HUSQVARNA": {
       "label": "Husqvarna",
@@ -155,7 +197,22 @@
           "OCT": 2590
         }
       },
-      "states": {}
+      "states": {
+        "Maharashtra": 25140,
+        "Uttar Pradesh": 4330,
+        "Rajasthan": 8950,
+        "Karnataka": 13114,
+        "Tamil Nadu": 26130,
+        "Gujarat": 5688,
+        "Haryana": 148,
+        "Madhya Pradesh": 3888,
+        "Andhra Pradesh": 2404,
+        "Telangana": 6868,
+        "Delhi": 19972,
+        "Kerala": 1672,
+        "West Bengal": 58,
+        "Bihar": 2
+      }
     },
     "AMPERE VEHICLES PVT LTD": {
       "label": "Ampere",
@@ -189,7 +246,23 @@
           "OCT": 4896
         }
       },
-      "states": {}
+      "states": {
+        "Maharashtra": 16520,
+        "Uttar Pradesh": 14194,
+        "Rajasthan": 8028,
+        "Karnataka": 18360,
+        "Tamil Nadu": 96190,
+        "Gujarat": 7816,
+        "Haryana": 2018,
+        "Madhya Pradesh": 6272,
+        "Andhra Pradesh": 7754,
+        "Telangana": 4802,
+        "Delhi": 9954,
+        "Kerala": 2910,
+        "Punjab": 2700,
+        "West Bengal": 8172,
+        "Bihar": 22002
+      }
     },
     "ATHER ENERGY LTD": {
       "label": "Ather Energy",
@@ -223,7 +296,23 @@
           "OCT": 17884
         }
       },
-      "states": {}
+      "states": {
+        "Maharashtra": 139188,
+        "Uttar Pradesh": 38794,
+        "Rajasthan": 41896,
+        "Karnataka": 198916,
+        "Tamil Nadu": 103888,
+        "Gujarat": 56776,
+        "Haryana": 3822,
+        "Madhya Pradesh": 44916,
+        "Andhra Pradesh": 46968,
+        "Telangana": 59346,
+        "Delhi": 16096,
+        "Kerala": 97866,
+        "Punjab": 11568,
+        "West Bengal": 11778,
+        "Bihar": 11644
+      }
     },
     "PIAGGIO VEHICLES PVT LTD": {
       "label": "Piaggio",
@@ -257,8 +346,40 @@
           "OCT": 8080
         }
       },
-      "states": {}
+      "states": {
+        "Maharashtra": 46570,
+        "Uttar Pradesh": 21296,
+        "Rajasthan": 17670,
+        "Karnataka": 42536,
+        "Tamil Nadu": 68992,
+        "Gujarat": 9898,
+        "Haryana": 3978,
+        "Madhya Pradesh": 17224,
+        "Andhra Pradesh": 54570,
+        "Telangana": 24210,
+        "Delhi": 3978,
+        "Kerala": 55834,
+        "Punjab": 3748,
+        "West Bengal": 4988,
+        "Bihar": 11878
+      }
     }
   },
-  "states_fetched": []
+  "states_fetched": [
+    "Maharashtra",
+    "Uttar Pradesh",
+    "Rajasthan",
+    "Karnataka",
+    "Tamil Nadu",
+    "Gujarat",
+    "Haryana",
+    "Madhya Pradesh",
+    "Andhra Pradesh",
+    "Telangana",
+    "Delhi",
+    "Kerala",
+    "Punjab",
+    "West Bengal",
+    "Bihar"
+  ]
 }
